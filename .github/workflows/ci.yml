@@ -61,6 +61,8 @@ jobs:
             path: tests/api/GetMediaBuyersCest.php
           - name: post
             path: tests/api/PostMediaBuyerCest.php
+          - name: reporting-demo
+            path: tests/api/ReportingDemoCest.php
     steps:
       - uses: actions/checkout@v4
 
