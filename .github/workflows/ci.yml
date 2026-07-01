@@ -6,9 +6,9 @@ on:
   pull_request:
     branches: [main]
 
-# Least privilege: read the repo, write the PR comment + checks summary.
+# contents:write is needed to publish the HTML report to the gh-pages branch.
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   checks: write
 
@@ -116,7 +116,14 @@ jobs:
           path: |
             tests/_output/run-${{ matrix.suite.name }}.log
             tests/_output/mock-server-${{ matrix.suite.name }}.log
-            tests/_output/report-${{ matrix.suite.name }}.html
+
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: html-${{ matrix.suite.name }}
+          path: tests/_output/report-${{ matrix.suite.name }}.html
+          if-no-files-found: error
 
   # ---------------------------------------------------------------------------
   # Report: merge every shard's JUnit into CTRF and publish it to the job
@@ -158,3 +165,38 @@ jobs:
           report-path: 'ctrf/*.json'
         env:
           GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Download HTML reports
+        if: always()
+        uses: actions/download-artifact@v4
+        with:
+          path: html
+          pattern: html-*
+          merge-multiple: true
+
+      - name: Assemble report site
+        if: always()
+        run: |
+          mkdir -p site
+          cp html/report-*.html site/ 2>/dev/null || true
+          {
+            echo '<!doctype html><meta charset="utf-8">'
+            echo '<title>Media Buyers API — Test Reports</title>'
+            echo '<h1>Media Buyers API — Test Reports</h1>'
+            echo "<p>CI run <code>${GITHUB_RUN_ID}</code> — commit <code>${GITHUB_SHA}</code></p>"
+            echo '<ul>'
+            for f in site/report-*.html; do
+              [ -e "$f" ] || continue
+              b=$(basename "$f")
+              echo "<li><a href=\"$b\">$b</a></li>"
+            done
+            echo '</ul>'
+          } > site/index.html
+
+      - name: Deploy report to gh-pages
+        if: always()
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ github.token }}
+          publish_dir: ./site
+          publish_branch: gh-pages
