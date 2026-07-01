@@ -1,0 +1,158 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Least privilege: read the repo, write the PR comment + checks summary.
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Static gate: lint + PHPStan + Codeception dry-run. Fast fail before spending
+  # runner time on the matrix.
+  # ---------------------------------------------------------------------------
+  static:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: composer
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress
+
+      - name: Prepare environment + actors
+        run: |
+          cp .env.example .env
+          composer run build
+
+      - name: Lint + PHPStan + dry-run
+        run: composer run check
+
+  # ---------------------------------------------------------------------------
+  # Test matrix: one parallel job per Cest file. Each boots its own mock server
+  # (isolated store), runs its shard, and emits a JUnit report + a debug log.
+  # ---------------------------------------------------------------------------
+  test:
+    name: Tests (${{ matrix.suite.name }})
+    runs-on: ubuntu-latest
+    needs: static
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - name: get
+            path: tests/api/GetMediaBuyersCest.php
+          - name: post
+            path: tests/api/PostMediaBuyerCest.php
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: composer
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress
+
+      - name: Prepare environment + actors
+        run: |
+          cp .env.example .env
+          composer run build
+
+      - name: Start mock API server
+        run: |
+          php -S 127.0.0.1:8080 tests/_data/mock-server/router.php \
+            > tests/_output/mock-server-${{ matrix.suite.name }}.log 2>&1 &
+          for i in $(seq 1 20); do
+            if curl -sf http://127.0.0.1:8080/api/mediabuyers >/dev/null; then
+              echo "Mock server is up"; exit 0
+            fi
+            sleep 0.5
+          done
+          echo "Mock server failed to start"; exit 1
+
+      - name: Run ${{ matrix.suite.name }} shard
+        run: |
+          vendor/bin/codecept run api "${{ matrix.suite.path }}" \
+            --xml=report-${{ matrix.suite.name }}.xml \
+            --html=report-${{ matrix.suite.name }}.html \
+            --debug 2>&1 | tee tests/_output/run-${{ matrix.suite.name }}.log
+
+      - name: Upload JUnit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-${{ matrix.suite.name }}
+          path: tests/_output/report-${{ matrix.suite.name }}.xml
+          if-no-files-found: error
+
+      - name: Upload run logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ matrix.suite.name }}
+          path: |
+            tests/_output/run-${{ matrix.suite.name }}.log
+            tests/_output/mock-server-${{ matrix.suite.name }}.log
+            tests/_output/report-${{ matrix.suite.name }}.html
+
+  # ---------------------------------------------------------------------------
+  # Report: merge every shard's JUnit into CTRF and publish it to the job
+  # summary and (on PRs) an in-place PR comment.
+  # ---------------------------------------------------------------------------
+  report:
+    name: Test report
+    runs-on: ubuntu-latest
+    needs: test
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download JUnit reports
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: junit-*
+          merge-multiple: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Convert JUnit -> CTRF
+        run: |
+          mkdir -p ctrf
+          for f in artifacts/report-*.xml; do
+            [ -e "$f" ] || continue
+            name=$(basename "$f" .xml)
+            npx -y junit-to-ctrf "$f" -o "ctrf/$name.json"
+          done
+
+      - name: Publish CTRF report
+        if: always()
+        uses: ctrf-io/github-test-reporter@v1
+        with:
+          report-path: 'ctrf/*.json'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

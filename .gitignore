@@ -1,6 +1,42 @@
-# Ignore everything by default
-*
+# --- Dependencies ---
+/vendor/
+/node_modules/
+composer.phar
 
-# Except the essentials
-!.gitignore
-!README.md
+# --- Environment ---
+.env
+.env.local
+.env.*.local
+
+# --- Codeception runtime / generated ---
+/tests/_output/*
+!/tests/_output/.gitkeep
+/tests/Support/_generated/
+/tests/_support/_generated/
+
+# --- Claude Code / AI tooling: local only, never pushed ---
+CLAUDE.md
+.claude/
+.claude-plugin/
+.claude.json
+.claude.json.backup
+*.claude-session
+
+# --- OMC / agent orchestration local state ---
+.omc/
+.mcp.json
+.cursor/
+.windsurf/
+
+# --- IDE ---
+.idea/
+.vscode/
+*.iml
+
+# --- OS / logs ---
+.DS_Store
+Thumbs.db
+*.log
+
+# --- Internal planning (local only) ---
+PLAN.md

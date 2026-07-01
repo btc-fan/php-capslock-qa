@@ -1,0 +1,42 @@
+{
+    "name": "yourorg/mediabuyers-api-tests",
+    "description": "Codeception API test suite against the Media Buyers REST contract",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": "^8.1"
+    },
+    "require-dev": {
+        "codeception/codeception": "^5.1",
+        "codeception/module-rest": "^3.3",
+        "codeception/module-phpbrowser": "^3.0",
+        "codeception/module-asserts": "^3.0",
+        "vlucas/phpdotenv": "^5.6",
+        "fakerphp/faker": "^1.23",
+        "justinrainbow/json-schema": "^6.2",
+        "phpstan/phpstan": "^1.11"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "build": "codecept build",
+        "test": "codecept run api",
+        "test:smoke": "codecept run api -g smoke",
+        "test:regression": "codecept run api -g regression",
+        "test:junit": "codecept run api --xml",
+        "test:report": "codecept run api --html",
+        "test:debug": "codecept run api --debug",
+        "lint": "find tests -name '*.php' -print0 | xargs -0 -n1 php -l",
+        "stan": "phpstan analyse --configuration=phpstan.neon.dist",
+        "check": ["@lint", "@stan", "codecept run api --dry-run"]
+    },
+    "config": {
+        "sort-packages": true,
+        "optimize-autoloader": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

@@ -1,0 +1,7 @@
+parameters:
+    level: 6
+    paths:
+        - tests
+    excludePaths:
+        - tests/_output
+        - tests/_data
