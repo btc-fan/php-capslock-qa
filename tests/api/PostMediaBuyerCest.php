@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Api;
 
 use Codeception\Example;
-use Tests\Support\ApiTester;
+use Tests\ApiTester;
 use Tests\Support\Factory\MediaBuyerFactory;
 
 /**
