@@ -1,0 +1,6 @@
+# Ignore everything by default
+*
+
+# Except the essentials
+!.gitignore
+!README.md
