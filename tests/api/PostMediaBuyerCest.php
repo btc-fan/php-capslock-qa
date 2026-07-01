@@ -143,7 +143,7 @@ final class PostMediaBuyerCest
     /**
      * Malformed single-field payloads and the error each should surface (P7–P10).
      *
-     * @return array<int, array{override: array<string, mixed>, detail: string}>
+     * @return array<string, array{override: array<string, mixed>, detail: string}>
      */
     protected function invalidFieldValues(): array
     {
