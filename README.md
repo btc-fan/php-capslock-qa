@@ -20,7 +20,9 @@ pointing the suite at a real environment is a one-line change.
 | Payloads | `MediaBuyerFactory` (Faker) — no inline JSON in tests |
 | Response validation | JSON Schema via `justinrainbow/json-schema` |
 | Config | `.env` (`BASE_URL`) — never hard-coded |
-| Static gate | `php -l` + PHPStan (level 6) + `codecept --dry-run` |
+| Static gate | `php -l` + PHPStan (level 5) + `codecept --dry-run` |
+
+Written answers to Part 2 (Q1–Q5) are in [`WRITTEN_EVALUATION.md`](WRITTEN_EVALUATION.md).
 
 ## Repository layout
 
@@ -93,9 +95,9 @@ php -S 127.0.0.1:8080 tests/_data/mock-server/router.php
 
 1. **Static** — lint + PHPStan + dry-run (fast fail).
 2. **Tests** — a parallel matrix, one job per Cest file; each boots its own
-   mock server, runs its shard, and uploads a JUnit report + debug log.
-3. **Report** — merges the JUnit reports into CTRF and publishes to the job
-   summary and an in-place PR comment.
+   mock server, runs its shard, and uploads JUnit + HTML reports and logs.
+3. **Report** — merges the JUnit reports into CTRF (job summary + in-place PR
+   comment) and publishes the HTML report to GitHub Pages (`gh-pages` branch).
 
 ## Future improvements
 

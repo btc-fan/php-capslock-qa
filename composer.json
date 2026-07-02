@@ -25,10 +25,6 @@
         "build": "codecept build",
         "test": "codecept run api",
         "test:smoke": "codecept run api -g smoke",
-        "test:regression": "codecept run api -g regression",
-        "test:junit": "codecept run api --xml",
-        "test:report": "codecept run api --html",
-        "test:debug": "codecept run api --debug",
         "lint": "find tests -name '*.php' -print0 | xargs -0 -n1 php -l",
         "stan": "phpstan analyse --configuration=phpstan.neon.dist",
         "check": ["@lint", "@stan", "codecept run api --dry-run"]

@@ -15,7 +15,6 @@ final class PostMediaBuyerCest
 {
     /**
      * P1: valid request -> 200 + schema-valid body.
-     * P2: data.id is server-generated (schema requires integer id; request never sends one).
      * P3: returned mbId/initials/name/email/slackUserId echo the request.
      * P4: active:true -> data.active === 1.
      *
@@ -40,6 +39,27 @@ final class PostMediaBuyerCest
                 'active' => 1,
             ],
         ]);
+    }
+
+    /**
+     * P2: data.id is a server-generated positive integer; the request omits id.
+     *
+     * @group regression
+     */
+    public function serverGeneratesPositiveIntegerId(ApiTester $I): void
+    {
+        $payload = MediaBuyerFactory::valid();
+        $I->assertArrayNotHasKey('id', $payload, 'Request must never supply id');
+
+        $I->sendPost('/api/mediabuyers', $payload);
+
+        $I->seeResponseCodeIs(200);
+        // JSONPath always returns a list of matches; a single field yields one element.
+        /** @var array<int, mixed> $idMatches */
+        $idMatches = $I->grabDataFromResponseByJsonPath('$.data.id');
+        $id = $idMatches[0] ?? null;
+        $I->assertIsInt($id);
+        $I->assertGreaterThan(0, $id);
     }
 
     /**
@@ -90,7 +110,7 @@ final class PostMediaBuyerCest
      * P8: name shorter than 2 / longer than 30 chars.
      * P9: mbId that is not a positive integer string.
      * P10: active that is not a boolean.
-     * Each malformed field -> 400.
+     * Each malformed field -> 400 with the matching message.
      *
      * @dataProvider invalidFieldValues
      * @group regression
@@ -108,9 +128,9 @@ final class PostMediaBuyerCest
     }
 
     /**
-     * P11: creating two buyers with the same mbId -> the second request errors.
-     * The contract leaves 400 vs 409 open, so assert on the 4xx class and
-     * document the assumption in the README (mock returns 409).
+     * P11: two buyers with the same mbId -> the second request errors.
+     * Contract leaves 400 vs 409 open, so assert the 4xx class (mock returns 409;
+     * assumption documented in the README).
      *
      * @group regression
      */
@@ -154,6 +174,10 @@ final class PostMediaBuyerCest
             ],
             'name too short' => [
                 'override' => ['name' => 'A'],
+                'detail' => 'The name must be between 2 and 30 characters.',
+            ],
+            'name too long' => [
+                'override' => ['name' => str_repeat('a', 31)],
                 'detail' => 'The name must be between 2 and 30 characters.',
             ],
             'mbId not numeric' => [

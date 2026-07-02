@@ -54,7 +54,7 @@ if ($path === '/api/mediabuyers' && $method === 'POST') {
         $errors[] = ['detail' => 'The initials must be exactly 2 characters long.'];
     }
 
-    if (isset($body['name']) && (strlen($body['name']) < 2 || strlen($body['name']) > 30)) {
+    if (isset($body['name']) && (strlen((string) $body['name']) < 2 || strlen((string) $body['name']) > 30)) {
         $errors[] = ['detail' => 'The name must be between 2 and 30 characters.'];
     }
 
@@ -62,12 +62,13 @@ if ($path === '/api/mediabuyers' && $method === 'POST') {
         $errors[] = ['detail' => 'The active field must be a boolean.'];
     }
 
-    if (isset($body['mbId']) && isset($store[$body['mbId']])) {
-        respond(409, ['errors' => [['detail' => "mbId {$body['mbId']} already exists."]]]);
-    }
-
+    // Field validation (400) takes precedence over the uniqueness conflict (409).
     if ($errors !== []) {
         respond(400, ['errors' => $errors]);
+    }
+
+    if (isset($body['mbId']) && isset($store[$body['mbId']])) {
+        respond(409, ['errors' => [['detail' => "mbId {$body['mbId']} already exists."]]]);
     }
 
     $record = [

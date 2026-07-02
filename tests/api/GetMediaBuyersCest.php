@@ -15,7 +15,7 @@ final class GetMediaBuyersCest
     /**
      * G1: HTTP 200 + Content-Type application/json.
      * G2: body conforms to the list schema.
-     * G3: `data` is an array (enforced by the schema's "type": "array").
+     * G3: `data` is an array (schema "type": "array"; holds for an empty list).
      *
      * @group smoke
      */
@@ -26,17 +26,14 @@ final class GetMediaBuyersCest
         $I->seeResponseCodeIs(200);
         $I->seeHttpHeader('Content-Type', 'application/json');
         $I->seeResponseIsJson();
+        $I->seeResponseMatchesJsonType(['data' => 'array']); // G3: data is an array, never null/404
         $I->seeResponseMatchesJsonSchema('get-media-buyers-schema.json');
     }
 
     /**
      * G4: every item exposes all required fields.
-     * G5: email is syntactically valid.
      * G6: active is an integer 0/1 (schema enum), never boolean/string.
-     * G7: id values are integers (uniqueness holds for a freshly seeded buyer).
-     *
-     * Seeds one buyer via POST so the list is non-empty and the item-level
-     * criteria are actually exercised, then re-validates against the schema.
+     * Seeds a buyer so the list is non-empty, then re-validates the schema.
      *
      * @group regression
      */
@@ -50,14 +47,53 @@ final class GetMediaBuyersCest
 
         $I->seeResponseCodeIs(200);
         $I->seeResponseMatchesJsonSchema('get-media-buyers-schema.json');
-        $I->seeResponseContainsJson([
-            'data' => [
-                [
-                    'mbId' => $buyer['mbId'],
-                    'email' => $buyer['email'],
-                    'active' => 1,
-                ],
-            ],
-        ]);
+        $I->seeResponseContainsJson(['data' => [['mbId' => $buyer['mbId'], 'active' => 1]]]);
+    }
+
+    /**
+     * G5: every email in the list is a syntactically valid address.
+     * (The schema declares "format": "email", but format assertions are not
+     * enforced by the validator by default, so this is checked explicitly.)
+     *
+     * @group regression
+     */
+    public function listEmailsAreSyntacticallyValid(ApiTester $I): void
+    {
+        $I->sendPost('/api/mediabuyers', MediaBuyerFactory::valid());
+        $I->seeResponseCodeIs(200);
+
+        $I->sendGet('/api/mediabuyers');
+        $I->seeResponseCodeIs(200);
+
+        /** @var array<int, mixed> $emails */
+        $emails = $I->grabDataFromResponseByJsonPath('$.data[*].email');
+        $I->assertNotEmpty($emails);
+        foreach ($emails as $email) {
+            $I->assertNotFalse(
+                filter_var((string) $email, FILTER_VALIDATE_EMAIL),
+                "Invalid email in list: {$email}"
+            );
+        }
+    }
+
+    /**
+     * G7: id values are unique across the response.
+     *
+     * @group regression
+     */
+    public function listIdsAreUnique(ApiTester $I): void
+    {
+        $I->sendPost('/api/mediabuyers', MediaBuyerFactory::valid());
+        $I->seeResponseCodeIs(200);
+        $I->sendPost('/api/mediabuyers', MediaBuyerFactory::valid());
+        $I->seeResponseCodeIs(200);
+
+        $I->sendGet('/api/mediabuyers');
+        $I->seeResponseCodeIs(200);
+
+        /** @var array<int, mixed> $ids */
+        $ids = $I->grabDataFromResponseByJsonPath('$.data[*].id');
+        $I->assertNotEmpty($ids);
+        $I->assertCount(count(array_unique($ids)), $ids, 'Duplicate id values in list');
     }
 }
