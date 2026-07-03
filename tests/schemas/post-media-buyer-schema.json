@@ -1,0 +1,20 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+        "data": {
+            "type": "object",
+            "properties": {
+                "id": { "type": "integer" },
+                "mbId": { "type": "string" },
+                "initials": { "type": "string", "minLength": 2, "maxLength": 2 },
+                "name": { "type": "string", "minLength": 2, "maxLength": 30 },
+                "email": { "type": "string", "format": "email" },
+                "slackUserId": { "type": "string" },
+                "active": { "type": "integer", "enum": [0, 1] }
+            },
+            "required": ["id", "mbId", "initials", "name", "email", "slackUserId", "active"]
+        }
+    },
+    "required": ["data"]
+}

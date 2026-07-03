@@ -1,0 +1,21 @@
+# Dependencies
+/vendor/
+composer.phar
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Codeception generated / runtime output
+/tests/_output/
+/tests/Support/_generated/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db

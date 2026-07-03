@@ -1,0 +1,14 @@
+actor: ApiTester
+modules:
+    enabled:
+        - REST:
+            depends: PhpBrowser
+            url: '%BASE_URL%'
+            part: Json
+        - Asserts
+        - \Tests\Support\Helper\Api
+    config:
+        REST:
+            headers:
+                Content-Type: 'application/json'
+                Accept: 'application/json'
