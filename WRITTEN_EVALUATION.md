@@ -66,5 +66,3 @@ failure couldn't poison the next test. Third, where an external dependency made
 cleanup unreliable, I isolated it behind a stub so a run didn't hinge on someone
 else's state. The suite went from roughly one-in-ten flaky to stable, and the
 parallel execution we actually wanted became safe to turn on.
-
-_(Written from experience — adjust the specifics to your own before submitting.)_
