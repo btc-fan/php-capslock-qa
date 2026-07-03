@@ -1,9 +1,6 @@
 parameters:
-    # Level 5: catches undefined methods/classes and bad calls, without the
-    # missing-type noise that Codeception's generated actor (_generated) emits.
+    # Level 5 catches undefined methods, unknown classes, and bad calls without
+    # the missing-type noise Codeception's generated actor would raise at level 6.
     level: 5
     paths:
         - tests
-    excludePaths:
-        - tests/_output
-        - tests/_data
