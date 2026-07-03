@@ -9,33 +9,43 @@ so retargeting an environment is config, not code.
 
 Part 2 answers are in [`WRITTEN_EVALUATION.md`](WRITTEN_EVALUATION.md).
 
-## Setup
+## Testing setup
 
-- **Suite:** `api` (Codeception 5)
-- **Modules:** `REST` on `PhpBrowser`, `Asserts`, plus a small `Api` helper for
-  JSON Schema validation
-- **Payloads:** `MediaBuyerFactory` (Faker) — one valid template, overridden per test
-- **Schemas:** `tests/schemas/*.json`, validated with `justinrainbow/json-schema`
-- **Config:** `BASE_URL` from `.env`
+For a project like this I keep a single `api` suite on Codeception 5:
 
-## Layout
+- **`REST` on `PhpBrowser`** — the HTTP client and the request/response
+  assertions (`sendGet`, `seeResponseCodeIs`, `seeResponseContainsJson`, …).
+- **`Asserts`** — plain PHPUnit-style assertions for the checks the REST module
+  doesn't cover (unique ids, valid emails).
+- **A small `Api` helper** — adds `seeResponseMatchesJsonSchema()`, since REST
+  ships type checks but not full JSON Schema validation.
+
+Requests come from a factory, successful responses are validated against JSON
+Schemas, and the base URL is read from `.env`.
+
+## Repository layout
 
 ```
 tests/
+  api.suite.yml                     # suite config: modules + JSON headers
   api/
-    GetMediaBuyersCest.php          # GET  /api/mediabuyers
-    PostMediaBuyerCest.php          # POST /api/mediabuyers
-  schemas/                          # response contracts (source of truth)
+    GetMediaBuyersCest.php          # GET  /api/mediabuyers  (G1–G7)
+    PostMediaBuyerCest.php          # POST /api/mediabuyers  (P1–P11)
+  schemas/                          # response contracts, the source of truth
   Support/
     Factory/MediaBuyerFactory.php   # request payload builder
     Helper/Api.php                  # seeResponseMatchesJsonSchema()
+codeception.yml                     # global config, namespace, .env params
+composer.json                       # dependencies + Tests\ autoload
+phpstan.neon.dist                   # static analysis config
+.env.example                        # BASE_URL placeholder
 ```
 
 ## What is tested
 
-Both endpoints, happy and unhappy paths. Boundary and validation cases are
-data providers so each rule is a row, not a copy-pasted method. Every criterion
-in the contract maps to at least one test:
+Both endpoints, happy and unhappy paths. Boundary and validation cases are data
+providers, so each rule is a row rather than a copy-pasted method. Every
+criterion in the contract maps to at least one test:
 
 | Criteria | Test |
 |---|---|
@@ -50,15 +60,28 @@ in the contract maps to at least one test:
 | P7–P10 | `PostMediaBuyerCest::rejectsInvalidFieldValue` |
 | P11 | `PostMediaBuyerCest::rejectsDuplicateMbId` |
 
-## Why these choices
+## Why these scenarios
 
-- **Schema validation on every success** catches field, type, and enum drift in
-  one assertion — the cheapest early warning when the backend changes.
-- **A factory** keeps the "valid buyer" defined once; negative cases only say
-  what they change (`valid(['email' => 'not-an-email'])`).
-- **Data providers** keep the boundary matrix readable as it grows.
-- The list-level checks (empty array, valid emails, unique ids) are cheap and
-  catch the regressions clients actually feel.
+I chose to cover every acceptance criterion, weighted toward the checks that
+catch real breakage: schema conformance on each success (field, type, and enum
+drift in one assertion), the mapping details a plain "200 OK" misses
+(`active` → integer, server-assigned `id`), and the validation paths, since
+that is where an API actually breaks for the clients calling it. I left out
+load, auth (the contract is silent on it), and exhaustive email fuzzing — one
+invalid case proves the path.
+
+## Abstractions (and what they buy at scale)
+
+- **`MediaBuyerFactory`** — the valid payload lives in one place. A new contract
+  field is one edit here, not one per test; negative cases only state what they
+  change. At 80 tests this is the difference between one edit and eighty.
+- **`Api::seeResponseMatchesJsonSchema()`** — response validation sits behind the
+  actor and the schemas are the source of truth, so a contract change is a schema
+  edit, not a test rewrite.
+- **`.env`-driven base URL** — the same suite runs against mock, staging, or prod
+  by swapping configuration.
+- **Data providers + `smoke`/`regression` groups** — boundary cases stay flat and
+  readable, and fast feedback stays separate from the full run.
 
 ## Assumptions
 
@@ -66,16 +89,17 @@ in the contract maps to at least one test:
   the 4xx class rather than a specific code.
 - **Empty list (G3):** `{"data": []}`, so the schema permits an empty array.
 
-## Scaling later
+## Further improvements
 
 Once a real environment exists: wire the suite into CI (static gate on PRs, then
-`codecept run` against a deployed/ephemeral env), add schema versioning and a
-consumer-driven contract test (Pact) for drift detection, data setup/teardown,
-parallel runs, and a reporting layer.
+`codecept run` against a deployed or ephemeral environment), add per-test data
+setup/teardown, run in parallel, version the schemas, add a consumer-driven
+contract test (Pact) for drift detection, and surface a reporting layer.
 
 ## Running
 
-Not required (no live server). Structure and static checks need no backend:
+Not required — there is no live server. Structure and static checks need no
+backend:
 
 ```bash
 composer install
