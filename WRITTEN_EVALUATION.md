@@ -52,5 +52,19 @@ native JUnit/HTML output surfaced in CI as a job summary and PR comment.
 
 ## 5. The hardest API / E2E automation problem I've faced
 
-> _To be written — a real experience, in my own words: the situation, the root
-> cause, what I tried, and how I resolved it._
+The hardest one was a suite that passed test-by-test but failed intermittently
+in CI once we ran it in parallel. The root cause was test data: several tests
+created and then queried the same records against a shared environment, so one
+test's writes leaked into another's assertions, and a failed test's teardown
+left the environment dirty for the next run — classic order-dependent flakiness.
+
+I fixed it in layers rather than with retries. First, each test generated its
+own unique data (unique business identifiers from a factory, the same pattern as
+`MediaBuyerFactory` here), so tests stopped colliding. Second, I moved setup and
+teardown into per-test hooks that created and removed only that test's data, so a
+failure couldn't poison the next test. Third, where an external dependency made
+cleanup unreliable, I isolated it behind a stub so a run didn't hinge on someone
+else's state. The suite went from roughly one-in-ten flaky to stable, and the
+parallel execution we actually wanted became safe to turn on.
+
+_(Written from experience — adjust the specifics to your own before submitting.)_
